@@ -1,0 +1,35 @@
+# 仅部署 MyVPN 后端 JAR
+# MySQL / Redis 使用宿主机已有 Docker 服务（127.0.0.1:3306 / 6379），不在此 compose 中启动
+
+services:
+  myvpn:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JAR_FILE: ${JAR_FILE:-target/myvpn-1.0-SNAPSHOT.jar}
+    image: myvpn-app:latest
+    container_name: myvpn-app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-9010}:9010"
+    environment:
+      TZ: Asia/Shanghai
+      # MySQL（Docker 已映射到宿主机 127.0.0.1:3306）
+      SPRING_DATASOURCE_URL: jdbc:mysql://${MYSQL_HOST:-host.docker.internal}:${MYSQL_PORT:-3306}/${MYSQL_DATABASE:-myvpn}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-root}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-123456}
+      # Redis（Docker 已映射到宿主机 6379，无密码）
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST:-host.docker.internal}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT:-6379}
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      SPRING_DATA_REDIS_DATABASE: ${REDIS_DATABASE:-0}
+      JAVA_OPTS: ${JAVA_OPTS:--Xms256m -Xmx512m}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9010/api/client/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
