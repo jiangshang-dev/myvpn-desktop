@@ -136,8 +136,9 @@ CREATE TABLE `vpn_node`  (
 
 -- ----------------------------
 -- Records of vpn_node
+-- 123.109.xx.xx ip 请填写自己的IP，配置方式与v2ray一样
 -- ----------------------------
-INSERT INTO `vpn_node` VALUES (1, '美国-节点', 'US', '103.119.14.83', 1234, 'vmess', 'tcp', 'auto', NULL, '/v2ray', 64, 100, 1, 1, '请改成你的 v2ray 节点信息', '2026-08-22 11:12:19', '2026-08-22 11:52:00', 'e9e4da6f-f569-47e2-90c0-366f512da0bd', 'none', '', '');
+INSERT INTO `vpn_node` VALUES (1, '美国-节点', 'US', '123.109.xx.xx', 1234, 'vmess', 'tcp', 'auto', NULL, '/v2ray', 64, 100, 1, 1, '请改成你的 v2ray 节点信息', '2026-08-22 11:12:19', '2026-08-22 11:52:00', 'e9e4da6f-f569-47e2-90c0-366f512da0bd', 'none', '', '');
 
 -- ----------------------------
 -- Table structure for vpn_plan
