@@ -9,6 +9,9 @@
 ![](./docs/img.png)
 ![](./docs/img_1.png)
 
+管理后台配置方法
+![](./docs/img_2.png)
+
 配置方法与v2ray客户端相同
 
 ## 架构
