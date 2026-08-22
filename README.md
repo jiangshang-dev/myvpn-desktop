@@ -24,7 +24,7 @@
 
 # MyVPN 管控平台
 
-类似快连的 VPN 客户端 + 后台管控系统。基于 Spring Boot 3.5 + MySQL + Redis + Vue3 Electron。
+基于 Spring Boot + Vue3 + Electron + MySQL + Redis 实现的网络连接客户端与设备管理系统，用于学习客户端设备管理、在线状态检测、连接会话管理、节点管理、心跳机制以及远程设备控制等技术。
 
 # 部署搭建VPN服务器
 
