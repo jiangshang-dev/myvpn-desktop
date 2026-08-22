@@ -2,6 +2,15 @@
 
 类似快连的 VPN 客户端 + 后台管控系统。基于 Spring Boot 3.5 + MySQL + Redis + Vue3 Electron。
 
+# 部署搭建VPN服务器
+
+参见 `docs/安装VPN.md`
+
+![](./docs/img.png)
+![](./docs/img_1.png)
+
+配置方法与v2ray客户端相同
+
 ## 架构
 
 ```
