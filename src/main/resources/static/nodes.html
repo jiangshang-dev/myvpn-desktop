@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>节点 · MyVPN</title>
+  <link rel="stylesheet" href="./css/admin.css">
+  <style>
+    .modal-mask { position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;place-items:center;z-index:50;padding:20px; }
+    .modal-mask.open { display:grid; }
+    .modal { width:min(620px,100%);background:#fff;border-radius:16px;padding:20px;max-height:90vh;overflow:auto; }
+    .modal h3 { margin:0 0 6px; }
+    .section-title { margin:14px 0 8px;font-size:13px;font-weight:600;color:#2f3d36; }
+    .form-grid { display:grid;grid-template-columns:1fr 1fr;gap:10px; }
+    .form-grid label { display:flex;flex-direction:column;gap:4px;font-size:12px;color:#5f6f66; }
+    .form-grid label.full { grid-column:1/-1; }
+    .form-grid input, .form-grid select { padding:8px 10px;border:1px solid #d5e0d9;border-radius:8px;font:inherit; }
+    .uuid-row { display:flex;gap:8px; }
+    .uuid-row input { flex:1; }
+    .modal-actions { display:flex;gap:10px;justify-content:flex-end;margin-top:16px; }
+    .hint { color:#5f6f66;font-size:12px;margin:8px 0 0; }
+    .field-hint { color:#8a9a92;font-size:11px; }
+    .latency-ok { color:#0d7a4c;font-weight:600; }
+    .latency-bad { color:#c0392b;font-weight:600; }
+    .warn-tag { display:inline-block;background:#fff3cd;color:#856404;font-size:11px;padding:2px 6px;border-radius:4px;margin:2px 2px 0 0; }
+    #test-panel { margin-top:12px;padding:12px;border-radius:12px;background:#f6faf8;border:1px solid #d5e0d9;font-size:13px;display:none; }
+    #test-panel.open { display:block; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="page" data-nav="nodes" data-title="节点管理">
+      <div class="toolbar">
+        <button class="btn" onclick="openForm()">新增节点</button>
+        <button class="btn ghost" onclick="testAll()">⚡ 全部测速</button>
+        <button class="btn ghost" onclick="load()">刷新</button>
+      </div>
+      <div id="test-panel"></div>
+      <div class="card" style="margin-top:12px">
+        <table>
+          <thead><tr><th>名称</th><th>地址</th><th>传输</th><th>延迟</th><th>速度</th><th>在线</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody id="list"></tbody>
+        </table>
+      </div>
+      <p class="hint">配置须与 v2rayN 完全一致。端口 1234 通常是 <b>tcp + 无 TLS + path 留空</b>。测速会启动本机 xray 做真连接测试。</p>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="modal" onclick="if(event.target===this)closeForm()">
+    <form class="modal" id="form" onsubmit="save(event)">
+      <h3 id="form-title">新增节点</h3>
+      <input type="hidden" id="id">
+
+      <div class="section-title">基础信息</div>
+      <div class="form-grid">
+        <label>名称（别名）<input id="name" required placeholder="美国-节点1"></label>
+        <label>地区<input id="region" placeholder="US"></label>
+      </div>
+
+      <div class="section-title">VMess 参数（与 v2rayN 一致）</div>
+      <div class="form-grid">
+        <label>地址 (address)<input id="host" required placeholder="103.119.14.83"></label>
+        <label>端口 (port)<input id="port" type="number" required value="1234"></label>
+        <label class="full">用户 ID (id) <span class="field-hint">必填，须与 v2ray 服务端 clients 中 UUID 一致</span>
+          <div class="uuid-row">
+            <input id="userId" required placeholder="e9e4da6f-f569-47e2-90c0-366f512da0bd" pattern="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}">
+            <button type="button" class="btn ghost" onclick="genUuid()">生成</button>
+          </div>
+        </label>
+        <label>额外 ID (alterId)<input id="alterId" type="number" value="64"></label>
+        <label>加密方式 (security)
+          <select id="security">
+            <option value="auto">auto</option>
+            <option value="aes-128-gcm">aes-128-gcm</option>
+            <option value="chacha20-poly1305">chacha20-poly1305</option>
+            <option value="none">none</option>
+          </select>
+        </label>
+        <label>协议
+          <select id="protocol"><option value="vmess">vmess</option><option value="vless">vless</option></select>
+        </label>
+      </div>
+
+      <div class="section-title">底层传输方式 (transport)</div>
+      <div class="form-grid">
+        <label>传输协议 (network)
+          <select id="network" onchange="syncTransportFields()">
+            <option value="tcp">tcp</option>
+            <option value="ws">ws</option>
+            <option value="grpc">grpc</option>
+          </select>
+        </label>
+        <label id="headerTypeWrap">伪装类型 (type)
+          <select id="headerType">
+            <option value="none">none</option>
+            <option value="http">http</option>
+          </select>
+        </label>
+        <label id="hostHeaderWrap">伪装域名 (host)<input id="hostHeader" placeholder="ws/http 时填写"></label>
+        <label id="pathWrap">路径 (path)<input id="path" placeholder="ws 时填写，如 /v2ray"></label>
+        <label>传输层 TLS
+          <select id="tls" onchange="syncTransportFields()">
+            <option value="">无</option>
+            <option value="tls">tls</option>
+          </select>
+        </label>
+        <label id="sniWrap">SNI (tls)<input id="sni" placeholder="启用 TLS 时填写"></label>
+      </div>
+
+      <div class="section-title">管控设置</div>
+      <div class="form-grid">
+        <label>在线上限 (0=不限)<input id="maxOnline" type="number" value="100"></label>
+        <label>排序<input id="sortNo" type="number" value="0"></label>
+        <label>状态
+          <select id="enabled"><option value="1">启用</option><option value="0">停用</option></select>
+        </label>
+        <label class="full">备注<input id="remark" placeholder="可选"></label>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="closeForm()">取消</button>
+        <button type="submit" class="btn">保存</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="./js/common.js"></script>
+  <script>
+    function genUuid() {
+      document.getElementById("userId").value = crypto.randomUUID();
+    }
+    function syncTransportFields() {
+      const network = document.getElementById("network").value;
+      const tls = document.getElementById("tls").value;
+      document.getElementById("headerTypeWrap").style.display = network === "tcp" ? "" : "none";
+      document.getElementById("pathWrap").style.display = network === "ws" || network === "grpc" ? "" : "none";
+      document.getElementById("hostHeaderWrap").style.display = network === "ws" ? "" : "none";
+      document.getElementById("sniWrap").style.display = tls === "tls" ? "" : "none";
+    }
+    function openForm(row) {
+      document.getElementById("form-title").textContent = row ? "编辑节点" : "新增节点";
+      document.getElementById("id").value = row?.id || "";
+      document.getElementById("name").value = row?.name || "";
+      document.getElementById("region").value = row?.region || "US";
+      document.getElementById("host").value = row?.host || "";
+      document.getElementById("port").value = row?.port || 1234;
+      document.getElementById("userId").value = row?.userId || "";
+      document.getElementById("alterId").value = row?.alterId ?? 64;
+      document.getElementById("security").value = row?.security || "auto";
+      document.getElementById("protocol").value = row?.protocol || "vmess";
+      document.getElementById("network").value = row?.network || "tcp";
+      document.getElementById("headerType").value = row?.headerType || "none";
+      document.getElementById("hostHeader").value = row?.hostHeader || "";
+      document.getElementById("path").value = row?.path || "";
+      document.getElementById("tls").value = row?.tls || (row?.security === "tls" ? "tls" : "");
+      document.getElementById("sni").value = row?.sni || "";
+      document.getElementById("maxOnline").value = row?.maxOnline ?? 100;
+      document.getElementById("sortNo").value = row?.sortNo ?? 0;
+      document.getElementById("enabled").value = String(row?.enabled ?? 1);
+      document.getElementById("remark").value = row?.remark || "";
+      syncTransportFields();
+      document.getElementById("modal").classList.add("open");
+    }
+    function closeForm() {
+      document.getElementById("modal").classList.remove("open");
+    }
+    async function edit(id) {
+      const row = await Admin.api("/api/admin/nodes/" + id);
+      openForm(row);
+    }
+    async function save(e) {
+      e.preventDefault();
+      const idVal = document.getElementById("id").value;
+      const body = {
+        id: idVal ? Number(idVal) : null,
+        name: document.getElementById("name").value,
+        region: document.getElementById("region").value,
+        host: document.getElementById("host").value,
+        port: Number(document.getElementById("port").value),
+        userId: document.getElementById("userId").value.trim(),
+        protocol: document.getElementById("protocol").value,
+        network: document.getElementById("network").value,
+        security: document.getElementById("security").value,
+        headerType: document.getElementById("headerType").value,
+        hostHeader: document.getElementById("hostHeader").value,
+        tls: document.getElementById("tls").value,
+        path: document.getElementById("path").value,
+        sni: document.getElementById("sni").value || null,
+        alterId: Number(document.getElementById("alterId").value),
+        maxOnline: Number(document.getElementById("maxOnline").value),
+        sortNo: Number(document.getElementById("sortNo").value),
+        enabled: Number(document.getElementById("enabled").value),
+        remark: document.getElementById("remark").value,
+      };
+      await Admin.api("/api/admin/nodes/save", { method: "POST", body: JSON.stringify(body) });
+      Admin.toast("已保存");
+      closeForm();
+      load();
+    }
+    async function toggle(id, enabled) {
+      await Admin.api("/api/admin/nodes/toggle", { method: "POST", body: JSON.stringify({ id, enabled }) });
+      Admin.toast(enabled ? "已启用" : "已停用");
+      load();
+    }
+    const testCache = {};
+
+    function fmtSpeed(bps) {
+      if (!bps || bps < 0) return "-";
+      const mb = bps / 1024 / 1024;
+      return mb >= 1 ? mb.toFixed(1) + " MB/s" : (bps / 1024).toFixed(0) + " KB/s";
+    }
+
+    function latencyClass(ms, ok) {
+      if (!ok) return "latency-bad";
+      if (ms < 0) return "";
+      return ms < 300 ? "latency-ok" : "latency-bad";
+    }
+
+    function renderTestPanel(result) {
+      const panel = document.getElementById("test-panel");
+      if (!result) { panel.classList.remove("open"); return; }
+      const w = (result.warnings || []).map((x) => `<span class="warn-tag">${Admin.esc(x)}</span>`).join("");
+      const tcp = result.tcp || {};
+      const proxy = result.proxy || {};
+      panel.innerHTML = `
+        <strong>${Admin.esc(result.nodeName)} 测速结果</strong>
+        <p>TCP 端口：${tcp.reachable ? `<span class="latency-ok">${tcp.latencyMs} ms</span>` : `<span class="latency-bad">不可达 ${Admin.esc(tcp.error || "")}</span>`}</p>
+        <p>真连接：${proxy.ok ? `<span class="latency-ok">${proxy.latencyMs} ms</span> · ${fmtSpeed(proxy.speedBytesPerSec)}` : `<span class="latency-bad">失败 ${Admin.esc(proxy.error || "")}</span>`}</p>
+        ${w ? `<p>${w}</p>` : ""}
+      `;
+      panel.classList.add("open");
+    }
+
+    async function testOne(id) {
+      Admin.toast("正在测速…");
+      const result = await Admin.api("/api/admin/nodes/" + id + "/test", { method: "POST" });
+      testCache[id] = result;
+      renderTestPanel(result);
+      load();
+    }
+
+    async function testAll() {
+      Admin.toast("正在测试全部节点…");
+      const results = await Admin.api("/api/admin/nodes/test-all", { method: "POST" });
+      results.forEach((r) => { testCache[r.nodeId] = r; });
+      if (results.length) renderTestPanel(results[0]);
+      load();
+      Admin.toast("测速完成");
+    }
+
+    function shortUuid(id) {
+      if (!id) return "-";
+      return id.length > 12 ? id.slice(0, 8) + "…" : id;
+    }
+    async function load() {
+      const rows = await Admin.api("/api/admin/nodes");
+      const details = await Promise.all(rows.map((r) => Admin.api("/api/admin/nodes/" + r.id)));
+      const map = Object.fromEntries(details.map((d) => [d.id, d]));
+      document.getElementById("list").innerHTML = rows.length ? rows.map((r) => {
+        const d = map[r.id] || {};
+        const t = testCache[r.id];
+        const lat = t?.proxy?.ok ? t.proxy.latencyMs : (t?.tcp?.reachable ? t.tcp.latencyMs : null);
+        const latOk = t?.proxy?.ok || t?.tcp?.reachable;
+        const latText = lat != null ? lat + " ms" : "-";
+        const spd = t?.proxy?.speedBytesPerSec;
+        return `
+        <tr>
+          <td>${Admin.esc(r.name)}</td>
+          <td>${Admin.esc(r.host)}:${r.port}</td>
+          <td>${Admin.esc(d.network || "tcp")}${d.tls ? "+tls" : ""}</td>
+          <td class="${latencyClass(lat, latOk)}">${latText}</td>
+          <td>${fmtSpeed(spd)}</td>
+          <td>${r.onlineCount}</td>
+          <td>${r.enabled ? "启用" : "停用"}</td>
+          <td>
+            <button class="btn ghost" onclick="testOne(${r.id})">测速</button>
+            <button class="btn ghost" onclick="edit(${r.id})">编辑</button>
+            <button class="btn ${r.enabled ? "danger" : ""}" onclick="toggle(${r.id}, ${r.enabled ? 0 : 1})">${r.enabled ? "停用" : "启用"}</button>
+          </td>
+        </tr>`;
+      }).join("") : `<tr><td colspan="8">暂无节点，点击「新增节点」</td></tr>`;
+    }
+    document.addEventListener("admin:ready", load);
+  </script>
+</body>
+</html>

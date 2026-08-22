@@ -1,0 +1,32 @@
+server:
+  port: 9010
+
+spring:
+  application:
+    name: myvpn
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/myvpn?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: root
+    password: ${MYSQL_PASSWORD:123456}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+myvpn:
+  admin:
+    token-days: 7
+  client:
+    token-days: 30
+    heartbeat-interval-seconds: 15
+    heartbeat-timeout-seconds: 60
+  session:
+    redis-prefix: "vpn:"

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在线会话 · MyVPN</title>
+  <link rel="stylesheet" href="./css/admin.css">
+</head>
+<body>
+  <div id="app">
+    <div id="page" data-nav="sessions" data-title="在线会话">
+      <div class="toolbar">
+        <input id="q" placeholder="搜索邮箱/设备" style="padding:8px 12px;border:1px solid #d5e0d9;border-radius:8px">
+        <select id="status" style="padding:8px 12px;border-radius:8px">
+          <option value="online">仅在线</option>
+          <option value="">全部</option>
+        </select>
+        <button class="btn" onclick="load()">刷新</button>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <table>
+          <thead>
+            <tr><th>用户</th><th>设备</th><th>节点</th><th>IP</th><th>时长</th><th>上传</th><th>下载</th><th>状态</th><th>操作</th></tr>
+          </thead>
+          <tbody id="list"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <script src="./js/common.js"></script>
+  <script>
+    async function kick(id) {
+      if (!confirm("确定断开该连接？")) return;
+      await Admin.api("/api/admin/sessions/kick", { method: "POST", body: JSON.stringify({ sessionId: id, reason: "admin_kick" }) });
+      Admin.toast("已发送断开指令");
+      load();
+    }
+    async function load() {
+      const q = document.getElementById("q").value;
+      const status = document.getElementById("status").value;
+      const rows = await Admin.api(`/api/admin/sessions?status=${encodeURIComponent(status)}&q=${encodeURIComponent(q)}`);
+      document.getElementById("list").innerHTML = rows.length ? rows.map((r) => `
+        <tr>
+          <td>${Admin.esc(r.email)}</td><td>${Admin.esc(r.deviceName)} (${Admin.esc(r.platform)})</td>
+          <td>${Admin.esc(r.nodeName)}</td><td>${Admin.esc(r.clientIp)}</td>
+          <td>${Admin.fmtDuration(r.durationSeconds)}</td>
+          <td>${Admin.fmtSpeed(r.uploadSpeed)}</td><td>${Admin.fmtSpeed(r.downloadSpeed)}</td>
+          <td><span class="badge info">${Admin.esc(r.status)}</span></td>
+          <td>${r.status === "online" ? `<button class="btn danger" onclick="kick(${r.id})">断开</button>` : "-"}</td>
+        </tr>`).join("") : `<tr><td colspan="9">暂无数据</td></tr>`;
+    }
+    document.addEventListener("admin:ready", () => { load(); setInterval(load, 8000); });
+  </script>
+</body>
+</html>

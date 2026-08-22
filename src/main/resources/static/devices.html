@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>设备 · MyVPN</title>
+  <link rel="stylesheet" href="./css/admin.css">
+</head>
+<body>
+  <div id="app">
+    <div id="page" data-nav="devices" data-title="设备管理">
+      <div class="toolbar">
+        <input id="q" placeholder="搜索邮箱/设备名" style="padding:8px 12px;border:1px solid #d5e0d9;border-radius:8px">
+        <button class="btn" onclick="load()">搜索</button>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <table>
+          <thead><tr><th>用户</th><th>设备</th><th>平台</th><th>在线</th><th>最近IP</th><th>最近活跃</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody id="list"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <script src="./js/common.js"></script>
+  <script>
+    async function toggle(id, enabled) {
+      await Admin.api("/api/admin/devices/toggle", { method: "POST", body: JSON.stringify({ id, enabled }) });
+      Admin.toast(enabled ? "已启用" : "已禁用并断开");
+      load();
+    }
+    async function load() {
+      const q = document.getElementById("q").value;
+      const rows = await Admin.api(`/api/admin/devices?q=${encodeURIComponent(q)}`);
+      document.getElementById("list").innerHTML = rows.map((r) => `
+        <tr>
+          <td>${Admin.esc(r.email)}</td><td>${Admin.esc(r.deviceName)}</td><td>${Admin.esc(r.platform)}</td>
+          <td>${Admin.esc(r.onlineStatus)}</td><td>${Admin.esc(r.lastIp)}</td><td>${Admin.fmt(r.lastSeenAt)}</td>
+          <td>${r.enabled ? "正常" : "禁用"}</td>
+          <td><button class="btn ${r.enabled ? "danger" : ""}" onclick="toggle(${r.id}, ${r.enabled ? 0 : 1})">${r.enabled ? "禁用" : "启用"}</button></td>
+        </tr>`).join("");
+    }
+    document.addEventListener("admin:ready", load);
+  </script>
+</body>
+</html>

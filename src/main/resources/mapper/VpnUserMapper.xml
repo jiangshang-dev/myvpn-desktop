@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.heima.mapper.VpnUserMapper">
+
+    <select id="findByEmail" resultType="com.heima.entity.VpnUser">
+        SELECT id, email, password, nickname, enabled, plan_id, plan_expire_at, created_at, last_login_at
+        FROM vpn_user WHERE email = #{email} LIMIT 1
+    </select>
+
+    <select id="findById" resultType="com.heima.entity.VpnUser">
+        SELECT id, email, password, nickname, enabled, plan_id, plan_expire_at, created_at, last_login_at
+        FROM vpn_user WHERE id = #{id} LIMIT 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO vpn_user (email, password, nickname, enabled, created_at)
+        VALUES (#{email}, #{password}, #{nickname}, 1, NOW())
+    </insert>
+
+    <update id="updateLastLogin">
+        UPDATE vpn_user SET last_login_at = NOW() WHERE id = #{id}
+    </update>
+
+    <update id="updateEnabled">
+        UPDATE vpn_user SET enabled = #{enabled} WHERE id = #{id}
+    </update>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*) FROM vpn_user
+    </select>
+
+    <select id="listUsers" resultType="com.heima.dto.AdminDtos$UserRow">
+        SELECT u.id, u.email, u.nickname, u.enabled, u.plan_expire_at AS planExpireAt,
+               u.last_login_at AS lastLoginAt,
+               (SELECT COUNT(*) FROM vpn_device d WHERE d.user_id = u.id) AS deviceCount,
+               (SELECT COUNT(*) FROM vpn_session s WHERE s.user_id = u.id AND s.status = 'online') AS onlineCount
+        FROM vpn_user u
+        <where>
+            <if test="q != null and q != ''">
+                AND (u.email LIKE CONCAT('%', #{q}, '%') OR u.nickname LIKE CONCAT('%', #{q}, '%'))
+            </if>
+        </where>
+        ORDER BY u.id DESC
+    </select>
+</mapper>

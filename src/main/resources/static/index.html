@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>概览 · MyVPN</title>
+  <link rel="stylesheet" href="./css/admin.css">
+</head>
+<body>
+  <div id="app">
+    <div id="page" data-nav="dashboard" data-title="概览">
+      <div class="kpis">
+        <div class="kpi"><div class="label">在线连接</div><div class="value" id="kpi-online">0</div></div>
+        <div class="kpi"><div class="label">注册用户</div><div class="value" id="kpi-users">0</div></div>
+        <div class="kpi"><div class="label">设备数</div><div class="value" id="kpi-devices">0</div></div>
+        <div class="kpi"><div class="label">启用节点</div><div class="value" id="kpi-nodes">0</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>节点在线人数</h3>
+          <table><thead><tr><th>节点</th><th>地区</th><th>在线</th><th>上传</th><th>下载</th></tr></thead>
+          <tbody id="node-online"></tbody></table>
+        </div>
+        <div class="card">
+          <h3>当前在线会话</h3>
+          <table><thead><tr><th>用户</th><th>设备</th><th>节点</th><th>时长</th><th>速度</th></tr></thead>
+          <tbody id="sessions"></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="./js/common.js"></script>
+  <script>
+    async function load() {
+      const data = await Admin.api("/api/admin/dashboard");
+      const s = data.stats || {};
+      document.getElementById("kpi-online").textContent = s.onlineSessions || 0;
+      document.getElementById("kpi-users").textContent = s.totalUsers || 0;
+      document.getElementById("kpi-devices").textContent = s.totalDevices || 0;
+      document.getElementById("kpi-nodes").textContent = s.enabledNodes || 0;
+      const nodes = data.nodeOnline || [];
+      document.getElementById("node-online").innerHTML = nodes.length ? nodes.map((r) => `
+        <tr><td>${Admin.esc(r.nodeName)}</td><td>${Admin.esc(r.region)}</td><td>${r.onlineCount}</td>
+        <td>${Admin.fmtSpeed(r.totalUpload)}</td><td>${Admin.fmtSpeed(r.totalDownload)}</td></tr>`).join("") : `<tr><td colspan="5">暂无</td></tr>`;
+      const sessions = data.sessions || [];
+      document.getElementById("sessions").innerHTML = sessions.length ? sessions.map((r) => `
+        <tr><td>${Admin.esc(r.email)}</td><td>${Admin.esc(r.deviceName)}</td><td>${Admin.esc(r.nodeName)}</td>
+        <td>${Admin.fmtDuration(r.durationSeconds)}</td><td>${Admin.fmtSpeed(r.downloadSpeed)}</td></tr>`).join("") : `<tr><td colspan="5">暂无在线</td></tr>`;
+    }
+    document.addEventListener("admin:ready", () => { load(); setInterval(load, 10000); });
+  </script>
+</body>
+</html>

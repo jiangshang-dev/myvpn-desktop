@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 · MyVPN 管理后台</title>
+  <link rel="stylesheet" href="./css/admin.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <form class="login-card" id="form">
+      <div class="login-mark">V</div>
+      <h1>MyVPN 管理后台</h1>
+      <p>节点、用户、设备与会话管控</p>
+      <label class="field"><span>账号</span><input id="account" value="admin" required></label>
+      <label class="field"><span>密码</span><input id="password" type="password" value="admin123" required></label>
+      <button class="btn" type="submit">登录</button>
+      <p id="err" style="color:#b91c1c;font-size:13px;margin-top:12px"></p>
+    </form>
+  </div>
+  <script>
+    document.getElementById("form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const err = document.getElementById("err");
+      err.textContent = "";
+      try {
+        const res = await fetch("/api/admin/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            account: document.getElementById("account").value,
+            password: document.getElementById("password").value,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "登录失败");
+        sessionStorage.setItem("myvpn.admin.token", data.token);
+        sessionStorage.setItem("myvpn.admin.user", JSON.stringify({ account: data.account, name: data.name }));
+        location.href = "./index.html";
+      } catch (ex) {
+        err.textContent = ex.message;
+      }
+    });
+  </script>
+</body>
+</html>

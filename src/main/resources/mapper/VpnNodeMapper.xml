@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.heima.mapper.VpnNodeMapper">
+
+    <sql id="nodeColumns">
+        id, name, region, host, port, user_id, protocol, network, security, header_type, host_header, tls,
+        sni, path, alter_id, max_online, enabled, sort_no, remark, created_at, updated_at
+    </sql>
+
+    <select id="findById" resultType="com.heima.entity.VpnNode">
+        SELECT <include refid="nodeColumns"/>
+        FROM vpn_node WHERE id = #{id} LIMIT 1
+    </select>
+
+    <select id="listEnabled" resultType="com.heima.entity.VpnNode">
+        SELECT <include refid="nodeColumns"/>
+        FROM vpn_node WHERE enabled = 1 ORDER BY sort_no ASC, id ASC
+    </select>
+
+    <select id="listAll" resultType="com.heima.dto.AdminDtos$NodeRow">
+        SELECT n.id, n.name, n.region, n.host, n.port, n.protocol, n.enabled, n.max_online AS maxOnline,
+               (SELECT COUNT(*) FROM vpn_session s WHERE s.node_id = n.id AND s.status = 'online') AS onlineCount
+        FROM vpn_node n ORDER BY n.sort_no ASC, n.id ASC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO vpn_node (name, region, host, port, user_id, protocol, network, security, header_type,
+                              host_header, tls, sni, path, alter_id, max_online, enabled, sort_no, remark,
+                              created_at, updated_at)
+        VALUES (#{name}, #{region}, #{host}, #{port}, #{userId}, #{protocol}, #{network}, #{security},
+                #{headerType}, #{hostHeader}, #{tls}, #{sni}, #{path}, #{alterId}, #{maxOnline}, #{enabled},
+                #{sortNo}, #{remark}, NOW(), NOW())
+    </insert>
+
+    <update id="update">
+        UPDATE vpn_node SET name=#{name}, region=#{region}, host=#{host}, port=#{port}, user_id=#{userId},
+            protocol=#{protocol}, network=#{network}, security=#{security}, header_type=#{headerType},
+            host_header=#{hostHeader}, tls=#{tls}, sni=#{sni}, path=#{path}, alter_id=#{alterId},
+            max_online=#{maxOnline}, enabled=#{enabled}, sort_no=#{sortNo}, remark=#{remark}, updated_at=NOW()
+        WHERE id=#{id}
+    </update>
+
+    <update id="updateEnabled">
+        UPDATE vpn_node SET enabled = #{enabled}, updated_at = NOW() WHERE id = #{id}
+    </update>
+
+    <select id="countEnabled" resultType="long">
+        SELECT COUNT(*) FROM vpn_node WHERE enabled = 1
+    </select>
+</mapper>

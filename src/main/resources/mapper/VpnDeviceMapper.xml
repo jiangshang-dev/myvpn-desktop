@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.heima.mapper.VpnDeviceMapper">
+
+    <select id="findByUserAndUuid" resultType="com.heima.entity.VpnDevice">
+        SELECT id, user_id, device_uuid, device_name, platform, enabled, v2ray_uuid, last_ip, last_seen_at, created_at
+        FROM vpn_device WHERE user_id = #{userId} AND device_uuid = #{deviceUuid} LIMIT 1
+    </select>
+
+    <select id="findById" resultType="com.heima.entity.VpnDevice">
+        SELECT id, user_id, device_uuid, device_name, platform, enabled, v2ray_uuid, last_ip, last_seen_at, created_at
+        FROM vpn_device WHERE id = #{id} LIMIT 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO vpn_device (user_id, device_uuid, device_name, platform, enabled, v2ray_uuid, created_at)
+        VALUES (#{userId}, #{deviceUuid}, #{deviceName}, #{platform}, 1, #{v2rayUuid}, NOW())
+    </insert>
+
+    <update id="updateLastSeen">
+        UPDATE vpn_device SET last_ip = #{lastIp}, last_seen_at = NOW() WHERE id = #{id}
+    </update>
+
+    <update id="updateEnabled">
+        UPDATE vpn_device SET enabled = #{enabled} WHERE id = #{id}
+    </update>
+
+    <select id="countByUser" resultType="long">
+        SELECT COUNT(*) FROM vpn_device WHERE user_id = #{userId}
+    </select>
+
+    <select id="listDevices" resultType="com.heima.dto.AdminDtos$DeviceRow">
+        SELECT d.id, d.user_id AS userId, u.email, d.device_uuid AS deviceUuid, d.device_name AS deviceName,
+               d.platform, d.enabled, d.last_ip AS lastIp, d.last_seen_at AS lastSeenAt,
+               CASE WHEN s.id IS NOT NULL THEN 'online' ELSE 'offline' END AS onlineStatus
+        FROM vpn_device d
+        JOIN vpn_user u ON u.id = d.user_id
+        LEFT JOIN vpn_session s ON s.device_id = d.id AND s.status = 'online'
+        <where>
+            <if test="userId != null">AND d.user_id = #{userId}</if>
+            <if test="q != null and q != ''">
+                AND (u.email LIKE CONCAT('%', #{q}, '%') OR d.device_name LIKE CONCAT('%', #{q}, '%')
+                     OR d.device_uuid LIKE CONCAT('%', #{q}, '%'))
+            </if>
+        </where>
+        ORDER BY d.id DESC
+    </select>
+</mapper>

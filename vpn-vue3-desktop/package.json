@@ -1,0 +1,39 @@
+{
+  "name": "myvpn-desktop",
+  "version": "1.0.0",
+  "description": "MyVPN 桌面客户端（Vue3 + Electron）",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "postinstall": "node node_modules/electron/install.js",
+    "setup:xray": "node scripts/setup-xray.mjs",
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac dmg",
+    "dist:win": "npm run build && electron-builder --win nsis"
+  },
+  "dependencies": {
+    "pinia": "^3.0.3",
+    "vue": "^3.5.18"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.1",
+    "electron": "^37.2.5",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^4.0.0",
+    "typescript": "^5.9.2",
+    "vite": "^7.0.6",
+    "vue-tsc": "^3.0.5"
+  },
+  "build": {
+    "appId": "com.myvpn.desktop",
+    "productName": "MyVPN",
+    "directories": { "output": "release" },
+    "files": ["out/**/*"],
+    "extraResources": [
+      { "from": "resources/xray", "to": "xray", "filter": ["**/*"] }
+    ],
+    "mac": { "target": ["dmg"] },
+    "win": { "target": ["nsis"] }
+  }
+}

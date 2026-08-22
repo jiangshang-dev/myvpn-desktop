@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.heima.mapper.VpnSessionMapper">
+
+    <select id="findById" resultType="com.heima.entity.VpnSession">
+        SELECT id, user_id, device_id, node_id, status, client_ip, upload_bytes, download_bytes,
+               upload_speed, download_speed, connected_at, disconnected_at, disconnect_reason, created_at, updated_at
+        FROM vpn_session WHERE id = #{id} LIMIT 1
+    </select>
+
+    <select id="findActiveByDevice" resultType="com.heima.entity.VpnSession">
+        SELECT id, user_id, device_id, node_id, status, client_ip, upload_bytes, download_bytes,
+               upload_speed, download_speed, connected_at, disconnected_at, disconnect_reason, created_at, updated_at
+        FROM vpn_session WHERE device_id = #{deviceId} AND status IN ('connecting', 'online')
+        ORDER BY id DESC LIMIT 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO vpn_session (user_id, device_id, node_id, status, client_ip, created_at, updated_at)
+        VALUES (#{userId}, #{deviceId}, #{nodeId}, #{status}, #{clientIp}, NOW(), NOW())
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE vpn_session
+        SET status = #{status},
+            disconnect_reason = #{disconnectReason},
+            disconnected_at = CASE WHEN #{status} IN ('disconnected', 'kicked') THEN NOW() ELSE disconnected_at END,
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateHeartbeat">
+        UPDATE vpn_session
+        SET upload_bytes = #{uploadBytes}, download_bytes = #{downloadBytes},
+            upload_speed = #{uploadSpeed}, download_speed = #{downloadSpeed},
+            client_ip = #{clientIp}, updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="markOnline">
+        UPDATE vpn_session SET status = 'online', client_ip = #{clientIp}, connected_at = NOW(), updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <select id="countOnline" resultType="long">
+        SELECT COUNT(*) FROM vpn_session WHERE status = 'online'
+    </select>
+
+    <select id="countOnlineByNode" resultType="long">
+        SELECT COUNT(*) FROM vpn_session WHERE node_id = #{nodeId} AND status = 'online'
+    </select>
+
+    <select id="countOnlineByUser" resultType="long">
+        SELECT COUNT(*) FROM vpn_session WHERE user_id = #{userId} AND status = 'online'
+    </select>
+
+    <select id="listOnlineSessions" resultType="com.heima.dto.AdminDtos$SessionRow">
+        SELECT s.id, s.user_id AS userId, u.email, u.nickname, s.device_id AS deviceId,
+               d.device_name AS deviceName, d.platform, s.node_id AS nodeId, n.name AS nodeName,
+               s.status, s.client_ip AS clientIp, s.upload_bytes AS uploadBytes,
+               s.download_bytes AS downloadBytes, s.upload_speed AS uploadSpeed,
+               s.download_speed AS downloadSpeed, s.connected_at AS connectedAt,
+               TIMESTAMPDIFF(SECOND, s.connected_at, NOW()) AS durationSeconds
+        FROM vpn_session s
+        JOIN vpn_user u ON u.id = s.user_id
+        JOIN vpn_device d ON d.id = s.device_id
+        JOIN vpn_node n ON n.id = s.node_id
+        WHERE s.status = 'online'
+        ORDER BY s.connected_at DESC
+    </select>
+
+    <select id="listSessions" resultType="com.heima.dto.AdminDtos$SessionRow">
+        SELECT s.id, s.user_id AS userId, u.email, u.nickname, s.device_id AS deviceId,
+               d.device_name AS deviceName, d.platform, s.node_id AS nodeId, n.name AS nodeName,
+               s.status, s.client_ip AS clientIp, s.upload_bytes AS uploadBytes,
+               s.download_bytes AS downloadBytes, s.upload_speed AS uploadSpeed,
+               s.download_speed AS downloadSpeed, s.connected_at AS connectedAt,
+               CASE WHEN s.connected_at IS NULL THEN 0
+                    ELSE TIMESTAMPDIFF(SECOND, s.connected_at, COALESCE(s.disconnected_at, NOW())) END AS durationSeconds
+        FROM vpn_session s
+        JOIN vpn_user u ON u.id = s.user_id
+        JOIN vpn_device d ON d.id = s.device_id
+        JOIN vpn_node n ON n.id = s.node_id
+        <where>
+            <if test="status != null and status != ''">AND s.status = #{status}</if>
+            <if test="nodeId != null">AND s.node_id = #{nodeId}</if>
+            <if test="q != null and q != ''">
+                AND (u.email LIKE CONCAT('%', #{q}, '%') OR d.device_name LIKE CONCAT('%', #{q}, '%'))
+            </if>
+        </where>
+        ORDER BY s.id DESC LIMIT 200
+    </select>
+
+    <select id="groupOnlineByNode" resultType="com.heima.dto.AdminDtos$NodeOnlineRow">
+        SELECT n.id AS nodeId, n.name AS nodeName, n.region,
+               COUNT(s.id) AS onlineCount,
+               COALESCE(SUM(s.upload_bytes), 0) AS totalUpload,
+               COALESCE(SUM(s.download_bytes), 0) AS totalDownload
+        FROM vpn_node n
+        LEFT JOIN vpn_session s ON s.node_id = n.id AND s.status = 'online'
+        GROUP BY n.id, n.name, n.region
+        ORDER BY onlineCount DESC, n.sort_no ASC
+    </select>
+</mapper>
